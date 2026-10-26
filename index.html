@@ -40,6 +40,7 @@
   .row + .row { margin-top:6px; }
   .grid2 .row + .row { margin-top:0; }
   .row .lbl { background:var(--teal-light); color:var(--navy); font-weight:700; font-size:12.5px; padding:0 10px; display:flex; align-items:center; }
+  .row textarea { border:0; outline:0; padding:12px 10px; font-size:15px; font-family:inherit; width:100%; min-width:0; text-transform:uppercase; background:#fff; resize:vertical; min-height:74px; }
   .row input { border:0; outline:0; padding:12px 10px; font-size:15px; font-family:inherit; width:100%; min-width:0; text-transform:uppercase; background:#fff; touch-action:manipulation; }
   .row:focus-within { border-color:var(--navy); box-shadow:0 0 0 2px rgba(10,71,98,.15); }
   .row.copiado { border-color:var(--teal); box-shadow:0 0 0 2px rgba(87,183,114,.35); }
@@ -129,6 +130,7 @@
     <div class="row"><div class="lbl">Cidade</div><input id="cidade" data-label="Cidade" placeholder="CIDADE - UF" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
     <div class="row"><div class="lbl">Telefone</div><input id="telefone" data-label="Telefone" inputmode="tel" placeholder="(00) 00000-0000" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
     <div class="row"><div class="lbl">Contato</div><input id="contato" data-label="Contato" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+    <div class="row"><div class="lbl">Observações</div><textarea id="obs" data-label="Observações" rows="3" placeholder="Se precisar, escreva aqui (aparece no PDF)" autocomplete="off"></textarea><button class="copy" type="button">Copiar</button></div>
   </div>
 
   <!-- serviço: recintos alfandegados por UF -->
@@ -164,7 +166,7 @@
 <script>
 // ---------- utilidades ----------
 const $ = id => document.getElementById(id);
-const CAMPOS = ["elabPor","cargo","cliente","cnpj","cep","endereco","bairro","cidade","telefone","contato"];
+const CAMPOS = ["elabPor","cargo","cliente","cnpj","cep","endereco","bairro","cidade","telefone","contato","obs"];
 // ordem usada para "copiar tudo" / "só valores" (mesma ordem da planilha)
 const ORDEM = ["elabPor","cargo","cliente","cnpj","endereco","bairro","cidade","cep","telefone","contato"];
 const VALORES_PADRAO = { elabPor:"TOMÁS SOARES", cargo:"COMERCIAL" };
@@ -259,11 +261,12 @@ function montarTextoCompleto() {
     const el = $(id); const v = el.value.trim();
     linhas.push(el.dataset.label + ": " + v);
   });
+  if ($("obs").value.trim()) linhas.push("Observações: " + $("obs").value.trim());
   const srv = resumoServicos();
   if (srv.length) { linhas.push("", ...srv); }
   return linhas.join("\n").trim();
 }
-function montarSoValores() { return ORDEM.map(id => $(id).value.trim()).join("\n"); }
+function montarSoValores() { return ORDEM.map(id => $(id).value.trim()).concat($("obs").value.trim() ? [$("obs").value.trim()] : []).join("\n"); }
 
 function validar() {
   // exige o essencial para a Diretoria montar a proposta
@@ -534,9 +537,24 @@ function gerarPDF(edit) {
   caixa("endereco", "Endereço", V("endereco"), L, y, W); y += 15.5;
   caixa("bairro", "Bairro", V("bairro"), L, y, CW); caixa("cidade", "Cidade - UF", V("cidade"), L + CW + GAP, y, CW); y += 15.5;
   caixa("cep", "CEP", V("cep"), L, y, CW); caixa("contato", "A/C (contato)", V("contato"), L + CW + GAP, y, CW); y += 15.5;
+  // observações (só aparece se tiver texto)
+  const obsTxt = V("obs");
+  if (obsTxt) {
+    font(9.5, false);
+    let ol = doc.splitTextToSize(obsTxt, W - 8); if (ol.length > 8) ol = ol.slice(0, 8);
+    const oh = ol.length * 4.4 + 9;
+    draw(LINE); doc.setLineWidth(0.25); fill([255, 255, 255]); doc.roundedRect(L, y, W, oh, 1.4, 1.4, "S");
+    font(6.3, false); ink(GRAY); doc.text("OBSERVAÇÕES", L + 3, y + 4, { charSpace: 0.4 });
+    if (edit) {
+      const f = new jsPDF.AcroForm.TextField();
+      f.Rect = [L + 2.2, y + 5.2, W - 4.4, oh - 6.4]; f.fieldName = "obs"; f.multiline = true; f.value = obsTxt; f.fontSize = 9.5; f.textAlign = "left";
+      doc.addField(f);
+    } else { font(9.5, false); ink([20, 35, 44]); doc.text(ol, L + 3, y + 9); }
+    y += oh + 3.5;
+  }
   // serviços
   tipos.forEach(sec => {
-    y += 4; secao("Serviço: " + NOME[sec], y); y += 3.5;
+    y += 7; secao("Serviço: " + NOME[sec], y); y += 3.5;
     const c0 = 30, cw = (W - c0) / ufs.length;
     fill(TEAL); doc.rect(L, y, W, 7, "F");
     font(8, true); ink([255, 255, 255]); doc.text("Recinto Alfandegado", L + 3, y + 4.7);
