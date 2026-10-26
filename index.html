@@ -112,8 +112,6 @@
     <div class="grid2">
       <div class="row"><div class="lbl">Elaborada por</div><input id="elabPor" data-label="Proposta elaborada por" value="TOMÁS SOARES" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
       <div class="row"><div class="lbl">Cargo</div><input id="cargo" data-label="Cargo" value="COMERCIAL" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
-      <div class="row"><div class="lbl">Nr. Proposta</div><input id="nrProposta" data-label="Nr. Proposta" placeholder="EX: 038-26" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
-      <div class="row"><div class="lbl">Salário mínimo</div><input id="salMin" data-label="Salário Mínimo" placeholder="R$" inputmode="decimal" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
     </div>
   </div>
 
@@ -162,9 +160,9 @@
 <script>
 // ---------- utilidades ----------
 const $ = id => document.getElementById(id);
-const CAMPOS = ["elabPor","cargo","nrProposta","salMin","cliente","cnpj","cep","endereco","bairro","cidade","telefone","contato"];
+const CAMPOS = ["elabPor","cargo","cliente","cnpj","cep","endereco","bairro","cidade","telefone","contato"];
 // ordem usada para "copiar tudo" / "só valores" (mesma ordem da planilha)
-const ORDEM = ["elabPor","cargo","nrProposta","salMin","cliente","cnpj","endereco","bairro","cidade","cep","telefone","contato"];
+const ORDEM = ["elabPor","cargo","cliente","cnpj","endereco","bairro","cidade","cep","telefone","contato"];
 const VALORES_PADRAO = { elabPor:"TOMÁS SOARES", cargo:"COMERCIAL" };
 
 let toastTimer;
@@ -265,7 +263,7 @@ function montarSoValores() { return ORDEM.map(id => $(id).value.trim()).join("\n
 
 function validar() {
   // exige o essencial para a Diretoria montar a proposta
-  const obrig = ["nrProposta","cliente","cnpj","endereco","bairro","cidade","cep","telefone"];
+  const obrig = ["cliente","cnpj","endereco","bairro","cidade","cep","telefone"];
   let primeiro = null;
   obrig.forEach(id => { const r = $(id).closest(".row"); r.classList.remove("erro"); });
   obrig.forEach(id => { if (!$(id).value.trim()) { $(id).closest(".row").classList.add("erro"); if (!primeiro) primeiro = id; } });
@@ -288,7 +286,7 @@ $("enviarZap").addEventListener("click", () => {
 });
 $("enviarEmail").addEventListener("click", () => {
   if (!validar()) return;
-  const assunto = "Dados para proposta " + $("nrProposta").value.trim() + " - " + $("cliente").value.trim();
+  const assunto = "Dados para proposta - " + $("cliente").value.trim();
   location.href = "mailto:?subject=" + encodeURIComponent(assunto) + "&body=" + encodeURIComponent(montarTextoCompleto());
 });
 
