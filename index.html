@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0A4762">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Proposta Syndex">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Dados da Proposta — Syndex</title>
+<style>
+  :root {
+    --navy:#0A4762; --navy-dark:#073245; --teal:#57B772; --teal-light:#E3F4E8; --teal-mid:#A9D8B5;
+    --text:#202226; --muted:#6F747E; --line:#CBD3DC; --bg:#F2F5F8; --err:#B23A2E;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:Helvetica, Arial, sans-serif; }
+  .wrap { max-width:860px; margin:0 auto; padding:calc(16px + env(safe-area-inset-top)) 16px calc(60px + env(safe-area-inset-bottom)); }
+  header.top { background:var(--navy); color:#fff; border-radius:12px; padding:18px 20px; margin-bottom:16px; border-bottom:4px solid var(--teal); }
+  header.top h1 { margin:0 0 4px; font-size:20px; letter-spacing:.3px; }
+  header.top p { margin:0; font-size:13px; color:#cfe3ec; line-height:1.4; }
+
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
+  .card h2 { margin:0 0 10px; font-size:12px; letter-spacing:1.2px; color:var(--navy); text-transform:uppercase; }
+
+  /* título da proposta (as duas linhas verdes da planilha) */
+  .titulos { background:var(--teal-mid); border-radius:8px; padding:10px 14px; margin-bottom:12px; }
+  .titulos label { display:flex; align-items:center; gap:10px; font-size:14px; padding:4px 0; cursor:pointer; user-select:none; }
+  .titulos input { width:18px; height:18px; accent-color:var(--navy); }
+  .titulos .copy-mini { margin-left:auto; }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:640px) { .grid2 { grid-template-columns:1fr; } }
+
+  /* cada linha = rótulo + valor + botão copiar (igual à planilha) */
+  .row { display:grid; grid-template-columns:118px 1fr 74px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; }
+  .row + .row { margin-top:6px; }
+  .grid2 .row + .row { margin-top:0; }
+  .row .lbl { background:var(--teal-light); color:var(--navy); font-weight:700; font-size:12.5px; padding:0 10px; display:flex; align-items:center; }
+  .row input { border:0; outline:0; padding:12px 10px; font-size:15px; font-family:inherit; width:100%; min-width:0; text-transform:uppercase; background:#fff; touch-action:manipulation; }
+  .row:focus-within { border-color:var(--navy); box-shadow:0 0 0 2px rgba(10,71,98,.15); }
+  .row.copiado { border-color:var(--teal); box-shadow:0 0 0 2px rgba(87,183,114,.35); }
+  .row.copiado input { background:var(--teal-light); }
+  .row.erro { border-color:var(--err); }
+  button.copy, button.copy-mini {
+    border:0; background:var(--navy); color:#fff; font-weight:700; font-size:12px; cursor:pointer; font-family:inherit;
+  }
+  button.copy { padding:0 8px; }
+  button.copy:hover, button.copy-mini:hover { background:var(--navy-dark); }
+  button.copy-mini { border-radius:6px; padding:5px 10px; }
+  .status { font-size:12px; min-height:16px; padding:4px 2px 0; color:var(--muted); }
+  .status a { color:var(--navy); font-weight:700; }
+
+  .acoes { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:640px) { .acoes { grid-template-columns:1fr; } }
+  .btn { border:0; border-radius:10px; padding:14px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btn.primary { background:var(--teal); color:#073245; }
+  .btn.dark { background:var(--navy); color:#fff; }
+  .btn.ghost { background:#fff; color:var(--navy); border:2px solid var(--navy); }
+  .btn.zap { background:#25D366; color:#073245; }
+  .btn:hover { filter:brightness(.95); }
+  .hint { font-size:12.5px; color:var(--muted); line-height:1.5; margin:8px 2px 0; }
+
+  /* tabelas de serviço (Recinto Alfandegado x UF) */
+  .tbl-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:8px; -webkit-overflow-scrolling:touch; }
+  table.srv { border-collapse:collapse; width:100%; min-width:520px; }
+  table.srv th, table.srv td { border:1px solid var(--line); text-align:center; padding:0; }
+  table.srv thead th { background:var(--teal-mid); color:var(--navy-dark); font-size:12.5px; padding:9px 4px; min-width:42px; position:relative; }
+  table.srv th.first, table.srv td.first { position:sticky; left:0; z-index:1; text-align:left; padding:0 10px; font-weight:700; font-size:12.5px; min-width:124px; white-space:nowrap; }
+  table.srv th.first { background:var(--teal-mid); z-index:2; }
+  table.srv td.first { background:var(--teal-light); color:var(--navy); }
+  table.srv td button.cel { width:100%; height:40px; border:0; background:#fff; font-size:15px; font-weight:700; color:var(--navy); cursor:pointer; font-family:inherit; touch-action:manipulation; }
+  table.srv td button.cel.on { background:var(--teal); color:#073245; }
+  table.srv td button.cel:hover { background:var(--teal-light); }
+  table.srv td button.cel.on:hover { background:var(--teal); }
+  table.srv th .rm { position:absolute; top:-1px; right:1px; border:0; background:transparent; color:var(--err); font-size:11px; cursor:pointer; padding:0 2px; line-height:1; }
+  .srv-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .srv-top h3 { margin:0; font-size:14px; color:var(--navy); flex:1; min-width:150px; }
+  .adduf { display:flex; gap:6px; align-items:center; margin-top:10px; }
+  .adduf input { width:70px; padding:9px; border:1px solid var(--line); border-radius:6px; font-size:14px; text-transform:uppercase; font-family:inherit; }
+  #toast { position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(30px); background:var(--navy-dark); color:#fff;
+    padding:11px 18px; border-radius:10px; font-size:14px; opacity:0; pointer-events:none; transition:.25s; max-width:90vw; z-index:20;
+    border-left:4px solid var(--teal); box-shadow:0 6px 20px rgba(0,0,0,.25); }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  #toast.bad { border-left-color:var(--err); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>Dados da Proposta — Desembaraço Aduaneiro</h1>
+    <p>Preencha os dados do cliente e envie para a Diretoria. Cada campo tem o botão <b>Copiar</b> (ou dê <b>dois cliques</b> no campo) para colar direto na proposta. Tudo vira MAIÚSCULO automaticamente.</p>
+  </header>
+
+  <!-- tipo da proposta -->
+  <div class="card">
+    <h2>Tipo de proposta</h2>
+    <div class="titulos" id="titulos">
+      <label><input type="checkbox" id="tExp"> PROPOSTA COMERCIAL - LIBERAÇÃO ADUANEIRA <b>EXPORTAÇÃO</b></label>
+      <label><input type="checkbox" id="tImp" checked> PROPOSTA COMERCIAL - LIBERAÇÃO ADUANEIRA <b>IMPORTAÇÃO</b></label>
+    </div>
+    <button type="button" class="copy-mini" id="copiarTitulos">Copiar título(s) selecionado(s)</button>
+  </div>
+
+  <!-- elaboração -->
+  <div class="card">
+    <h2>Elaboração</h2>
+    <div class="grid2">
+      <div class="row"><div class="lbl">Elaborada por</div><input id="elabPor" data-label="Proposta elaborada por" value="TOMÁS SOARES" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+      <div class="row"><div class="lbl">Cargo</div><input id="cargo" data-label="Cargo" value="COMERCIAL" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+      <div class="row"><div class="lbl">Nr. Proposta</div><input id="nrProposta" data-label="Nr. Proposta" placeholder="EX: 038-26" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+      <div class="row"><div class="lbl">Salário mínimo</div><input id="salMin" data-label="Salário Mínimo" placeholder="R$" inputmode="decimal" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- cliente -->
+  <div class="card">
+    <h2>Dados do cliente</h2>
+    <div class="row"><div class="lbl">Cliente</div><input id="cliente" data-label="Cliente" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+    <div class="row"><div class="lbl">CNPJ</div><input id="cnpj" data-label="CNPJ" inputmode="numeric" placeholder="00.000.000/0000-00" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+    <div class="status" id="cnpjStatus"></div>
+    <div class="row"><div class="lbl">CEP</div><input id="cep" data-label="CEP" inputmode="numeric" placeholder="00000-000" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+    <div class="status" id="cepStatus"></div>
+    <div class="row"><div class="lbl">Endereço</div><input id="endereco" data-label="Endereço" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+    <div class="row"><div class="lbl">Bairro</div><input id="bairro" data-label="Bairro" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+    <div class="row"><div class="lbl">Cidade</div><input id="cidade" data-label="Cidade" placeholder="CIDADE - UF" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+    <div class="row"><div class="lbl">Telefone</div><input id="telefone" data-label="Telefone" inputmode="tel" placeholder="(00) 00000-0000" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+    <div class="row"><div class="lbl">Contato</div><input id="contato" data-label="Contato" autocomplete="off"><button class="copy" type="button">Copiar</button></div>
+  </div>
+
+  <!-- serviço: recintos alfandegados por UF -->
+  <div class="card">
+    <h2>Serviço — Recinto Alfandegado</h2>
+    <p class="hint" style="margin:0 0 10px">Toque na célula para marcar/desmarcar o <b>X</b>. Use <b>Copiar tabela</b> para colar no Excel já no formato da planilha.</p>
+    <div class="srv-top"><h3>SERVIÇO: IMPORTAÇÃO</h3><button type="button" class="copy-mini" data-copy="imp">Copiar tabela</button><button type="button" class="copy-mini" data-clear="imp" style="background:#6F747E">Limpar</button></div>
+    <div class="tbl-wrap"><table class="srv" id="tbl-imp"></table></div>
+    <div class="srv-top" style="margin-top:18px"><h3>SERVIÇO: EXPORTAÇÃO</h3><button type="button" class="copy-mini" data-copy="exp">Copiar tabela</button><button type="button" class="copy-mini" data-clear="exp" style="background:#6F747E">Limpar</button></div>
+    <div class="tbl-wrap"><table class="srv" id="tbl-exp"></table></div>
+    <div class="adduf"><input id="novaUf" maxlength="2" placeholder="UF" autocomplete="off"><button type="button" class="copy-mini" id="addUf">+ Adicionar UF nas duas tabelas</button></div>
+  </div>
+
+  <!-- ações -->
+  <div class="card">
+    <h2>Enviar para a Diretoria</h2>
+    <div class="acoes">
+      <button class="btn primary" type="button" id="copiarTudo">Copiar tudo (com títulos)</button>
+      <button class="btn dark" type="button" id="copiarValores">Copiar só os valores (em coluna)</button>
+      <button class="btn zap" type="button" id="enviarZap">Enviar por WhatsApp</button>
+      <button class="btn ghost" type="button" id="enviarEmail">Enviar por e-mail</button>
+    </div>
+    <p class="hint"><b>Copiar tudo</b> gera o bloco completo, pronto para colar numa mensagem. <b>Só os valores</b> cola um valor por linha, na mesma ordem da planilha (bom para colar direto no Excel). O WhatsApp e o e-mail abrem já com o texto pronto — você escolhe o destinatário e confirma o envio.</p>
+    <button class="btn ghost" type="button" id="limpar" style="margin-top:12px;width:100%">Limpar tudo e começar nova proposta</button>
+  </div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+// ---------- utilidades ----------
+const $ = id => document.getElementById(id);
+const CAMPOS = ["elabPor","cargo","nrProposta","salMin","cliente","cnpj","cep","endereco","bairro","cidade","telefone","contato"];
+// ordem usada para "copiar tudo" / "só valores" (mesma ordem da planilha)
+const ORDEM = ["elabPor","cargo","nrProposta","salMin","cliente","cnpj","endereco","bairro","cidade","cep","telefone","contato"];
+const VALORES_PADRAO = { elabPor:"TOMÁS SOARES", cargo:"COMERCIAL" };
+
+let toastTimer;
+function toast(msg, ruim) {
+  const t = $("toast");
+  t.textContent = msg; t.className = "show" + (ruim ? " bad" : "");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.className = ""; }, 2200);
+}
+
+async function copiarTexto(texto) {
+  try {
+    if (navigator.clipboard && window.isSecureContext !== false) { await navigator.clipboard.writeText(texto); return true; }
+  } catch (e) { /* cai no método antigo */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = texto; ta.setAttribute("readonly", ""); ta.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+    document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, texto.length);
+    const ok = document.execCommand("copy"); ta.remove(); return ok;
+  } catch (e) { return false; }
+}
+
+// ---------- maiúsculas automáticas + máscaras ----------
+function fmtCNPJ(raw) {
+  const d = raw.replace(/\D/g, "").slice(0, 14); let o = d.slice(0, 2);
+  if (d.length > 2) o += "." + d.slice(2, 5); if (d.length > 5) o += "." + d.slice(5, 8);
+  if (d.length > 8) o += "/" + d.slice(8, 12); if (d.length > 12) o += "-" + d.slice(12, 14); return o;
+}
+function fmtCEP(raw) { const d = raw.replace(/\D/g, "").slice(0, 8); return d.length > 5 ? d.slice(0, 5) + "-" + d.slice(5) : d; }
+function fmtTel(raw) {
+  const d = raw.replace(/\D/g, "").slice(0, 11);
+  if (!d) return ""; if (d.length <= 2) return "(" + d; if (d.length <= 6) return "(" + d.slice(0, 2) + ") " + d.slice(2);
+  if (d.length <= 10) return "(" + d.slice(0, 2) + ") " + d.slice(2, 6) + "-" + d.slice(6);
+  return "(" + d.slice(0, 2) + ") " + d.slice(2, 7) + "-" + d.slice(7);
+}
+const MASCARAS = { cnpj: fmtCNPJ, cep: fmtCEP, telefone: fmtTel };
+
+CAMPOS.forEach(id => {
+  const el = $(id);
+  el.addEventListener("input", () => {
+    const pos = el.selectionStart;
+    let v = el.value.toUpperCase();
+    if (MASCARAS[id]) v = MASCARAS[id](v);
+    if (v !== el.value) {
+      el.value = v;
+      try { const p = MASCARAS[id] ? v.length : pos; el.setSelectionRange(p, p); } catch (e) {}
+    }
+    el.closest(".row").classList.remove("erro");
+    salvar();
+  });
+});
+
+// ---------- copiar por campo: botão ou duplo clique ----------
+async function copiarCampo(id) {
+  const el = $(id); const v = el.value.trim();
+  const row = el.closest(".row");
+  if (!v) { toast("O campo " + el.dataset.label + " está vazio", true); return; }
+  const ok = await copiarTexto(v);
+  if (ok) {
+    row.classList.add("copiado"); setTimeout(() => row.classList.remove("copiado"), 900);
+    toast("Copiado: " + v);
+  } else { toast("Não consegui copiar — selecione o texto e copie manualmente", true); }
+}
+CAMPOS.forEach(id => {
+  const row = $(id).closest(".row");
+  row.querySelector("button.copy").addEventListener("click", () => copiarCampo(id));
+  $(id).addEventListener("dblclick", () => { $(id).select(); copiarCampo(id); });
+  row.querySelector(".lbl").addEventListener("dblclick", () => copiarCampo(id));
+});
+
+// ---------- títulos ----------
+function titulosSelecionados() {
+  const t = [];
+  if ($("tExp").checked) t.push("PROPOSTA COMERCIAL - LIBERAÇÃO ADUANEIRA EXPORTAÇÃO");
+  if ($("tImp").checked) t.push("PROPOSTA COMERCIAL - LIBERAÇÃO ADUANEIRA IMPORTAÇÃO");
+  return t;
+}
+$("copiarTitulos").addEventListener("click", async () => {
+  const t = titulosSelecionados();
+  if (!t.length) { toast("Marque Exportação e/ou Importação", true); return; }
+  if (await copiarTexto(t.join("\n"))) toast("Título(s) copiado(s)"); else toast("Não consegui copiar", true);
+});
+["tExp","tImp"].forEach(id => $(id).addEventListener("change", salvar));
+
+// ---------- blocos de texto para copiar / enviar ----------
+function montarTextoCompleto() {
+  const linhas = [];
+  const t = titulosSelecionados();
+  if (t.length) { linhas.push(...t, ""); }
+  ORDEM.forEach(id => {
+    const el = $(id); const v = el.value.trim();
+    linhas.push(el.dataset.label + ": " + v);
+  });
+  const srv = resumoServicos();
+  if (srv.length) { linhas.push("", ...srv); }
+  return linhas.join("\n").trim();
+}
+function montarSoValores() { return ORDEM.map(id => $(id).value.trim()).join("\n"); }
+
+function validar() {
+  // exige o essencial para a Diretoria montar a proposta
+  const obrig = ["nrProposta","cliente","cnpj","endereco","bairro","cidade","cep","telefone"];
+  let primeiro = null;
+  obrig.forEach(id => { const r = $(id).closest(".row"); r.classList.remove("erro"); });
+  obrig.forEach(id => { if (!$(id).value.trim()) { $(id).closest(".row").classList.add("erro"); if (!primeiro) primeiro = id; } });
+  if (!titulosSelecionados().length) { toast("Marque Exportação e/ou Importação", true); return false; }
+  if (primeiro) { toast("Preencha: " + $(primeiro).dataset.label, true); $(primeiro).focus(); return false; }
+  return true;
+}
+
+$("copiarTudo").addEventListener("click", async () => {
+  if (!validar()) return;
+  if (await copiarTexto(montarTextoCompleto())) toast("Tudo copiado! Cole na mensagem ou na proposta"); else toast("Não consegui copiar", true);
+});
+$("copiarValores").addEventListener("click", async () => {
+  if (!validar()) return;
+  if (await copiarTexto(montarSoValores())) toast("Valores copiados (um por linha)"); else toast("Não consegui copiar", true);
+});
+$("enviarZap").addEventListener("click", () => {
+  if (!validar()) return;
+  window.open("https://wa.me/?text=" + encodeURIComponent(montarTextoCompleto()), "_blank");
+});
+$("enviarEmail").addEventListener("click", () => {
+  if (!validar()) return;
+  const assunto = "Dados para proposta " + $("nrProposta").value.trim() + " - " + $("cliente").value.trim();
+  location.href = "mailto:?subject=" + encodeURIComponent(assunto) + "&body=" + encodeURIComponent(montarTextoCompleto());
+});
+
+// ---------- tabelas de serviço (Importação / Exportação) ----------
+const UFS_BASE = ["RS","SC","PR","SP","RJ","MG","MT","PE","CE","BA"];
+const LINHAS = ["Portos","Fronteiras","Aeroportos"];
+const SECOES = { imp: "IMPORTAÇÃO", exp: "EXPORTAÇÃO" };
+let ufs = [...UFS_BASE];
+let marcas = { imp: {}, exp: {} };           // marcas[sec]["Portos|SP"] = true
+function renderTabelas() {
+  Object.keys(SECOES).forEach(sec => {
+    let h = '<thead><tr><th class="first">Recinto Alfandegado</th>';
+    ufs.forEach(u => { h += `<th>${u}${UFS_BASE.includes(u) ? "" : `<button class="rm" data-rm="${u}" title="Remover ${u}">×</button>`}</th>`; });
+    h += "</tr></thead><tbody>";
+    LINHAS.forEach(l => {
+      h += `<tr><td class="first">${l}:</td>`;
+      ufs.forEach(u => { const on = marcas[sec][l + "|" + u]; h += `<td><button type="button" class="cel${on ? " on" : ""}" data-sec="${sec}" data-l="${l}" data-u="${u}" aria-label="${l} ${u}">${on ? "X" : ""}</button></td>`; });
+      h += "</tr>";
+    });
+    $("tbl-" + sec).innerHTML = h + "</tbody>";
+  });
+}
+document.addEventListener("click", e => {
+  const c = e.target.closest("button.cel");
+  if (c) { const k = c.dataset.l + "|" + c.dataset.u; const m = marcas[c.dataset.sec];
+    if (m[k]) delete m[k]; else m[k] = true;
+    c.classList.toggle("on", !!m[k]); c.textContent = m[k] ? "X" : ""; salvarSrv(); return; }
+  const rm = e.target.closest("button.rm");
+  if (rm) { const u = rm.dataset.rm; ufs = ufs.filter(x => x !== u);
+    Object.keys(marcas).forEach(sec => LINHAS.forEach(l => delete marcas[sec][l + "|" + u]));
+    renderTabelas(); salvarSrv(); return; }
+  const cp = e.target.closest("[data-copy]");
+  if (cp) { copiarTabela(cp.dataset.copy); return; }
+  const cl = e.target.closest("[data-clear]");
+  if (cl) { marcas[cl.dataset.clear] = {}; renderTabelas(); salvarSrv(); toast("Tabela de " + SECOES[cl.dataset.clear].toLowerCase() + " limpa"); }
+});
+$("addUf").addEventListener("click", () => {
+  const u = $("novaUf").value.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(u)) { toast("Digite a sigla com 2 letras (ex.: GO)", true); return; }
+  if (ufs.includes(u)) { toast(u + " já está na tabela", true); return; }
+  ufs.push(u); $("novaUf").value = ""; renderTabelas(); salvarSrv(); toast(u + " adicionado");
+});
+$("novaUf").addEventListener("input", () => { $("novaUf").value = $("novaUf").value.toUpperCase().replace(/[^A-Z]/g, ""); });
+
+// texto em colunas (TAB) para colar no Excel igual à planilha
+function tabelaTSV(sec) {
+  const linhas = ["SERVIÇO: " + SECOES[sec], ["Recinto Alfandegado", ...ufs].join("\t")];
+  LINHAS.forEach(l => linhas.push([l + ":", ...ufs.map(u => marcas[sec][l + "|" + u] ? "X" : "")].join("\t")));
+  return linhas.join("\n");
+}
+async function copiarTabela(sec) {
+  if (await copiarTexto(tabelaTSV(sec))) toast("Tabela de " + SECOES[sec].toLowerCase() + " copiada — cole no Excel"); else toast("Não consegui copiar", true);
+}
+function resumoServicos() {
+  const out = [];
+  Object.keys(SECOES).forEach(sec => {
+    const ls = [];
+    LINHAS.forEach(l => { const m = ufs.filter(u => marcas[sec][l + "|" + u]); if (m.length) ls.push(l + ": " + m.join(", ")); });
+    if (ls.length) out.push("SERVIÇO: " + SECOES[sec], ...ls, "");
+  });
+  return out;
+}
+function salvarSrv() { try { localStorage.setItem("syndex_servicos_proposta", JSON.stringify({ ufs, marcas })); } catch (e) {} }
+function carregarSrv() {
+  try { const d = JSON.parse(localStorage.getItem("syndex_servicos_proposta") || "null");
+    if (d && Array.isArray(d.ufs) && d.marcas) { ufs = d.ufs; marcas = { imp: d.marcas.imp || {}, exp: d.marcas.exp || {} }; } } catch (e) {}
+}
+carregarSrv(); renderTabelas();
+
+// ---------- salvar rascunho no aparelho ----------
+function salvar() {
+  try {
+    const d = { tExp: $("tExp").checked, tImp: $("tImp").checked };
+    CAMPOS.forEach(id => d[id] = $(id).value);
+    localStorage.setItem("syndex_dados_proposta", JSON.stringify(d));
+  } catch (e) {}
+}
+function carregar() {
+  try {
+    const d = JSON.parse(localStorage.getItem("syndex_dados_proposta") || "null"); if (!d) return;
+    $("tExp").checked = !!d.tExp; $("tImp").checked = !!d.tImp;
+    CAMPOS.forEach(id => { if (typeof d[id] === "string") $(id).value = d[id]; });
+  } catch (e) {}
+}
+carregar();
+$("limpar").addEventListener("click", () => {
+  if (!window.confirm("Limpar todos os campos?")) return;
+  CAMPOS.forEach(id => { $(id).value = VALORES_PADRAO[id] || ""; $(id).closest(".row").classList.remove("erro"); });
+  $("tExp").checked = false; $("tImp").checked = true;
+  $("cnpjStatus").textContent = ""; $("cepStatus").textContent = "";
+  cepUltimo = ""; cnpjUltimo = "";
+  marcas = { imp: {}, exp: {} }; ufs = [...UFS_BASE]; renderTabelas(); salvarSrv();
+  salvar(); toast("Pronto para uma nova proposta");
+});
+
+// ---------- busca automática: CEP e CNPJ (várias fontes) ----------
+async function getJson(url, ms = 8000) {
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, headers: { "Accept": "application/json" } });
+    if (res.status === 404 || res.status === 400) return { __nf: true };
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return await res.json();
+  } finally { clearTimeout(t); }
+}
+const FONTES_CEP = [
+  async d => { const j = await getJson(`https://viacep.com.br/ws/${d}/json/`); if (j.__nf || j.erro) return { nf: true };
+    return { logradouro: j.logradouro, bairro: j.bairro, cidade: j.localidade, uf: j.uf }; },
+  async d => { const j = await getJson(`https://brasilapi.com.br/api/cep/v1/${d}`); if (j.__nf) return { nf: true };
+    return { logradouro: j.street, bairro: j.neighborhood, cidade: j.city, uf: j.state }; },
+  async d => { const j = await getJson(`https://opencep.com/v1/${d}`); if (j.__nf) return { nf: true };
+    return { logradouro: j.logradouro, bairro: j.bairro, cidade: j.localidade, uf: j.uf }; },
+  async d => { const j = await getJson(`https://cep.awesomeapi.com.br/json/${d}`); if (j.__nf) return { nf: true };
+    return { logradouro: j.address, bairro: j.district, cidade: j.city, uf: j.state }; }
+];
+const juntaLogr = (tipo, logr) => [tipo, logr].filter(Boolean).join(" ").trim();
+const FONTES_CNPJ = [
+  async d => { const j = await getJson(`https://brasilapi.com.br/api/cnpj/v1/${d}`); if (j.__nf) return { nf: true };
+    return { nome: j.razao_social || j.nome_fantasia, cep: j.cep, logradouro: juntaLogr(j.descricao_tipo_de_logradouro, j.logradouro), numero: j.numero,
+             bairro: j.bairro, cidade: j.municipio, uf: j.uf, tel: j.ddd_telefone_1 }; },
+  async d => { const j = await getJson(`https://publica.cnpj.ws/cnpj/${d}`); if (j.__nf) return { nf: true }; const e = j.estabelecimento || {};
+    return { nome: j.razao_social || e.nome_fantasia, cep: e.cep, logradouro: juntaLogr(e.tipo_logradouro, e.logradouro), numero: e.numero, bairro: e.bairro,
+             cidade: e.cidade && e.cidade.nome, uf: e.estado && e.estado.sigla, tel: (e.ddd1 || "") + (e.telefone1 || "") }; },
+  async d => { const j = await getJson(`https://minhareceita.org/${d}`); if (j.__nf) return { nf: true };
+    return { nome: j.razao_social || j.nome_fantasia, cep: j.cep, logradouro: juntaLogr(j.descricao_tipo_de_logradouro, j.logradouro), numero: j.numero,
+             bairro: j.bairro, cidade: j.municipio, uf: j.uf, tel: j.ddd_telefone_1 }; },
+  async d => { const j = await getJson(`https://www.receitaws.com.br/v1/cnpj/${d}`); if (j.status === "ERROR") return { nf: true };
+    return { nome: j.nome || j.fantasia, cep: j.cep, logradouro: j.logradouro, numero: j.numero, bairro: j.bairro, cidade: j.municipio, uf: j.uf, tel: j.telefone }; }
+];
+async function tentar(fontes, digits, ok) {
+  let nf = false;
+  for (const f of fontes) {
+    try { const r = await f(digits); if (r && r.nf) { nf = true; continue; } if (r && ok(r)) return r; } catch (e) {}
+  }
+  return nf ? { nf: true } : null;
+}
+function status(el, msg, cor, retry) {
+  el.textContent = msg; el.style.color = cor;
+  if (retry) { const a = document.createElement("a"); a.href = "#"; a.textContent = " Tentar novamente";
+    a.addEventListener("click", e => { e.preventDefault(); retry(); }); el.appendChild(a); }
+}
+const ERRO = "#B23A2E", OK = "#2f7a47";
+let cepUltimo = "", cnpjUltimo = "";
+
+async function buscarCep(force) {
+  const d = $("cep").value.replace(/\D/g, ""); const st = $("cepStatus");
+  if (d.length !== 8) { st.textContent = ""; return; }
+  if (cepUltimo === d && !force) return; cepUltimo = d;
+  status(st, "Buscando endereço...", "var(--muted)");
+  const r = await tentar(FONTES_CEP, d, x => x.logradouro || x.cidade);
+  if ($("cep").value.replace(/\D/g, "") !== d) return;
+  if (!r) { cepUltimo = ""; status(st, "Não consegui buscar agora (internet/bloqueio de rede). Preencha manualmente ou", ERRO, () => buscarCep(true)); return; }
+  if (r.nf) { status(st, "CEP não encontrado — preencha manualmente.", ERRO); return; }
+  if (r.logradouro) $("endereco").value = r.logradouro.toUpperCase();
+  if (r.bairro) $("bairro").value = r.bairro.toUpperCase();
+  if (r.cidade) $("cidade").value = (r.cidade + (r.uf ? " - " + r.uf : "")).toUpperCase();
+  salvar(); status(st, "Endereço preenchido automaticamente.", OK);
+  setTimeout(() => { if (st.style.color !== "rgb(178, 58, 46)") st.textContent = ""; }, 3000);
+}
+async function buscarCnpj(force) {
+  const d = $("cnpj").value.replace(/\D/g, ""); const st = $("cnpjStatus");
+  if (d.length !== 14) { st.textContent = ""; return; }
+  if (cnpjUltimo === d && !force) return; cnpjUltimo = d;
+  status(st, "Buscando empresa...", "var(--muted)");
+  const r = await tentar(FONTES_CNPJ, d, x => x.nome);
+  if ($("cnpj").value.replace(/\D/g, "") !== d) return;
+  if (!r) { cnpjUltimo = ""; status(st, "Não consegui buscar agora (internet/bloqueio de rede). Preencha manualmente ou", ERRO, () => buscarCnpj(true)); return; }
+  if (r.nf) { status(st, "CNPJ não encontrado — preencha manualmente.", ERRO); return; }
+  $("cliente").value = r.nome.toUpperCase();
+  const cepD = String(r.cep || "").replace(/\D/g, "");
+  if (cepD.length === 8) { $("cep").value = fmtCEP(cepD); cepUltimo = cepD; }   // evita a busca de CEP sobrescrever o endereço com número
+  if (r.logradouro) $("endereco").value = (r.logradouro + (r.numero && r.numero !== "S/N" ? "," + r.numero : "")).toUpperCase();
+  if (r.bairro) $("bairro").value = r.bairro.toUpperCase();
+  if (r.cidade) $("cidade").value = (r.cidade + (r.uf ? " - " + r.uf : "")).toUpperCase();
+  const telD = String(r.tel || "").replace(/\D/g, "");
+  if (telD.length >= 10 && !$("telefone").value.trim()) $("telefone").value = fmtTel(telD);
+  salvar(); status(st, "Empresa e endereço preenchidos automaticamente.", OK);
+  setTimeout(() => { if (st.style.color !== "rgb(178, 58, 46)") st.textContent = ""; }, 3000);
+}
+["input","change","blur","paste","keyup"].forEach(ev => {
+  $("cep").addEventListener(ev, () => setTimeout(() => buscarCep(false), ev === "paste" ? 50 : 0));
+  $("cnpj").addEventListener(ev, () => setTimeout(() => buscarCnpj(false), ev === "paste" ? 50 : 0));
+});
+</script>
+</body>
+</html>
