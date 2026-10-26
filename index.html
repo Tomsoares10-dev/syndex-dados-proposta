@@ -87,6 +87,38 @@
     border-left:4px solid var(--teal); box-shadow:0 6px 20px rgba(0,0,0,.25); }
   #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
   #toast.bad { border-left-color:var(--err); }
+
+  /* ---- vista da Diretoria (link) ---- */
+  #vista { display:none; max-width:760px; margin:0 auto; padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(50px + env(safe-area-inset-bottom,0px)); font-family:inherit; color:#14232C; }
+  body.vista-on { background:#eef2f5; }
+  body.vista-on .wrap { display:none; }
+  body.vista-on #vista { display:block; }
+  #vista .vtop { background:#fff; border-bottom:4px solid #00496A; border-radius:10px 10px 0 0; padding:16px 18px; }
+  #vista .vtop b { color:#00496A; font-size:13px; display:block; }
+  #vista .vtop span { font-size:11.5px; color:#6A7C87; }
+  #vista h1 { font-size:21px; color:#00496A; margin:18px 0 2px; }
+  #vista .vhint { font-size:12.5px; color:#51636E; margin:0 0 12px; }
+  #vista .vsec { font-size:11px; font-weight:700; letter-spacing:.1em; color:#00496A; margin:20px 0 8px; text-transform:uppercase; display:flex; gap:8px; align-items:center; }
+  #vista .vsec:before { content:""; width:16px; height:3px; background:#3FA65B; }
+  #vista .vgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  #vista .vcard { background:#fff; border:1px solid #D5DEE4; border-radius:10px; padding:11px 14px; text-align:left; font:inherit; color:inherit; cursor:pointer; width:100%; min-width:0; transition:background .12s, border-color .12s; }
+  #vista .vcard.w { grid-column:1/3; }
+  #vista .vcard small { display:block; font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:#6A7C87; margin-bottom:3px; }
+  #vista .vcard strong { display:block; font-size:15.5px; word-break:break-word; }
+  #vista .vcard em { display:block; font-style:normal; font-size:10.5px; color:#3FA65B; margin-top:4px; font-weight:600; }
+  #vista .vcard.ok { background:#E6F5EC; border-color:#3FA65B; }
+  #vista .vtipo { border-left:4px solid #3FA65B; background:#fff; }
+  #vista table { border-collapse:collapse; width:100%; font-size:12.5px; background:#fff; }
+  #vista th { background:#00496A; color:#fff; padding:7px 4px; font-size:11px; }
+  #vista th:first-child { text-align:left; padding-left:10px; }
+  #vista td { border:1px solid #D5DEE4; height:30px; text-align:center; }
+  #vista td:first-child { text-align:left; padding-left:10px; font-weight:700; background:#F4F7F9; }
+  #vista .xx { background:#3FA65B; color:#fff; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:700; }
+  #vista .vall { margin-top:20px; width:100%; padding:14px; border:0; border-radius:10px; background:#00496A; color:#fff; font:inherit; font-weight:700; font-size:15px; cursor:pointer; }
+  #linkBox { display:none; margin-top:12px; padding:12px; border:1px solid #D5DEE4; border-radius:10px; background:#F4F7F9; }
+  #linkBox input { width:100%; box-sizing:border-box; font-size:12px; padding:9px; border:1px solid #D5DEE4; border-radius:6px; background:#fff; }
+  #linkBox .lb { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  @media (max-width:520px) { #vista .vgrid { grid-template-columns:1fr; } #vista .vcard.w { grid-column:auto; } }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 </head>
@@ -153,14 +185,17 @@
       <button class="btn dark" type="button" id="copiarValores">Copiar só os valores (em coluna)</button>
       <button class="btn primary" type="button" id="gerarPdf">Gerar PDF (texto para copiar)</button>
       <button class="btn primary" type="button" id="gerarPdfEdit">Gerar PDF EDITÁVEL (preencher e editar)</button>
-      <button class="btn zap" type="button" id="enviarZap">Enviar por WhatsApp</button>
+            <button class="btn dark" type="button" id="gerarLink">Gerar link para a Diretoria (toque copia cada dado)</button>
+<button class="btn zap" type="button" id="enviarZap">Enviar por WhatsApp</button>
       <button class="btn ghost" type="button" id="enviarEmail">Enviar por e-mail</button>
     </div>
-    <p class="hint"><b>Gerar PDF editável</b> cria a mesma folha com todos os campos editáveis (clique e digite, cole, apague). <b>Gerar PDF</b> cria a folha no mesmo layout da proposta, com texto selecionável: dá para copiar tudo ou item por item. <b>Copiar tudo</b> gera o bloco completo, pronto para colar numa mensagem. <b>Só os valores</b> cola um valor por linha, na mesma ordem da planilha (bom para colar direto no Excel). O WhatsApp e o e-mail abrem já com o texto pronto — você escolhe o destinatário e confirma o envio.</p>
+        <div id="linkBox"><input id="linkUrl" readonly aria-label="Link para a Diretoria"><div class="lb"><button class="btn primary" type="button" id="linkCopiar" style="flex:1">Copiar link</button><button class="btn zap" type="button" id="linkZap" style="flex:1">Enviar link por WhatsApp</button></div><p class="hint" style="margin:8px 0 0">Quem abrir o link vê os dados em cartões: um toque em cada cartão copia a informação.</p></div>
+<p class="hint"><b>Gerar PDF editável</b> cria a mesma folha com todos os campos editáveis (clique e digite, cole, apague). <b>Gerar PDF</b> cria a folha no mesmo layout da proposta, com texto selecionável: dá para copiar tudo ou item por item. <b>Copiar tudo</b> gera o bloco completo, pronto para colar numa mensagem. <b>Só os valores</b> cola um valor por linha, na mesma ordem da planilha (bom para colar direto no Excel). O WhatsApp e o e-mail abrem já com o texto pronto — você escolhe o destinatário e confirma o envio.</p>
     <button class="btn ghost" type="button" id="limpar" style="margin-top:12px;width:100%">Limpar tudo e começar nova proposta</button>
   </div>
 
 </div>
+<div id="vista" aria-live="polite"></div>
 <div id="toast"></div>
 
 <script>
@@ -589,6 +624,97 @@ function gerarPDF(edit) {
 }
 $("gerarPdf").addEventListener("click", () => gerarPDF(false));
 $("gerarPdfEdit").addEventListener("click", () => gerarPDF(true));
+
+// ---------- link para a Diretoria (um toque copia cada informação) ----------
+function b64uEnc(obj) {
+  const b = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  return b.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function b64uDec(str) {
+  let b = str.replace(/-/g, "+").replace(/_/g, "/"); while (b.length % 4) b += "=";
+  return JSON.parse(decodeURIComponent(escape(atob(b))));
+}
+function dadosParaLink() {
+  const c = {}; CAMPOS.forEach(id => { c[id] = $(id).value.trim(); });
+  return { v: 1, c, t: [$("tExp").checked ? "exp" : "", $("tImp").checked ? "imp" : ""].filter(Boolean), ufs, m: marcas };
+}
+function urlBase() { return location.origin + location.pathname; }
+$("gerarLink").addEventListener("click", async () => {
+  if (!validar()) return;
+  const url = urlBase() + "#d=" + b64uEnc(dadosParaLink());
+  $("linkUrl").value = url; $("linkBox").style.display = "block";
+  $("linkUrl").dataset.url = url;
+  if (await copiarTexto(url)) toast("Link copiado! Cole no WhatsApp ou e-mail"); else toast("Link gerado — use o botão Copiar link", true);
+});
+$("linkCopiar").addEventListener("click", async () => { if (await copiarTexto($("linkUrl").value)) toast("Link copiado"); else toast("Não consegui copiar", true); });
+$("linkZap").addEventListener("click", () => {
+  const cli = $("cliente").value.trim();
+  window.open("https://wa.me/?text=" + encodeURIComponent("Dados para proposta" + (cli ? " - " + cli : "") + ":\n" + $("linkUrl").value), "_blank");
+});
+
+// ---------- vista da Diretoria: abre quando o endereço tem #d=... ----------
+function montarVista(d) {
+  const V = $("vista"); V.textContent = "";
+  const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  const NOMES = { imp: "IMPORTAÇÃO", exp: "EXPORTAÇÃO" };
+  const c = d.c || {}, ufsV = Array.isArray(d.ufs) ? d.ufs.filter(u => /^[A-Z]{2}$/.test(u)) : [];
+  const mk = d.m || { imp: {}, exp: {} };
+  const tipos = (d.t || []).filter(t => NOMES[t]);
+  const top = el("div", "vtop"); top.append(el("b", "", "SYNDEX LOGÍSTICA E GESTÃO ADUANEIRA LTDA."), el("span", "", "Dados para proposta"));
+  V.append(top, el("h1", "", "Informações do cliente"), el("p", "vhint", "Toque em cada cartão para copiar a informação. Depois é só colar na proposta."));
+  async function copiar(card, texto) {
+    if (!texto) { toast("Campo vazio", true); return; }
+    if (await copiarTexto(texto)) { card.classList.add("ok"); setTimeout(() => card.classList.remove("ok"), 1100); toast("Copiado: " + (texto.length > 40 ? texto.slice(0, 40) + "…" : texto)); }
+    else toast("Não consegui copiar — selecione o texto e copie", true);
+  }
+  function cartao(rot, valor, cls) {
+    const b = el("button", "vcard " + (cls || ""));
+    b.type = "button"; b.append(el("small", "", rot), el("strong", "", valor || "—"), el("em", "", "Toque para copiar"));
+    b.addEventListener("click", () => copiar(b, valor)); return b;
+  }
+  if (tipos.length) {
+    V.append(el("div", "vsec", "Tipo de proposta"));
+    tipos.forEach(t => { const txt = "PROPOSTA COMERCIAL - LIBERAÇÃO ADUANEIRA " + NOMES[t]; const b = cartao("Título", txt, "w vtipo"); const g = el("div", "vgrid"); g.append(b); V.append(g); });
+  }
+  V.append(el("div", "vsec", "Cliente"));
+  const g = el("div", "vgrid");
+  g.append(cartao("Cliente", c.cliente, "w"), cartao("CNPJ", c.cnpj), cartao("Telefone", c.telefone), cartao("Endereço", c.endereco, "w"),
+    cartao("Bairro", c.bairro), cartao("Cidade - UF", c.cidade), cartao("CEP", c.cep), cartao("A/C (contato)", c.contato));
+  V.append(g);
+  if (c.obs) { V.append(el("div", "vsec", "Observações")); const g2 = el("div", "vgrid"); g2.append(cartao("Observações", c.obs, "w")); V.append(g2); }
+  V.append(el("div", "vsec", "Elaboração"));
+  const g3 = el("div", "vgrid"); g3.append(cartao("Elaborada por", c.elabPor), cartao("Cargo", c.cargo)); V.append(g3);
+  const linhasTxt = [];
+  tipos.forEach(t => {
+    const ls = [];
+    LINHAS.forEach(l => { const m = ufsV.filter(u => mk[t] && mk[t][l + "|" + u]); if (m.length) ls.push([l, m]); });
+    V.append(el("div", "vsec", "Serviço: " + NOMES[t]));
+    const wrap = el("div", ""); wrap.style.overflowX = "auto";
+    const tb = el("table"); const hr = el("tr"); hr.append(el("th", "", "Recinto Alfandegado"));
+    ufsV.forEach(u => hr.append(el("th", "", u))); tb.append(hr);
+    LINHAS.forEach(l => { const r = el("tr"); r.append(el("td", "", l + ":")); ufsV.forEach(u => { const td = el("td"); if (mk[t] && mk[t][l + "|" + u]) td.append(el("span", "xx", "X")); r.append(td); }); tb.append(r); });
+    wrap.append(tb); V.append(wrap);
+    if (ls.length) {
+      const g4 = el("div", "vgrid"); g4.style.marginTop = "10px";
+      ls.forEach(([l, m]) => g4.append(cartao(l, l + ": " + m.join(" - "), "w")));
+      V.append(g4);
+      linhasTxt.push("SERVIÇO: " + NOMES[t], ...ls.map(([l, m]) => l + ": " + m.join(", ")), "");
+    }
+  });
+  const rot = { elabPor: "Proposta elaborada por", cargo: "Cargo", cliente: "Cliente", cnpj: "CNPJ", endereco: "Endereço", bairro: "Bairro", cidade: "Cidade", cep: "CEP", telefone: "Telefone", contato: "Contato", obs: "Observações" };
+  const tudo = [...tipos.map(t => "PROPOSTA COMERCIAL - LIBERAÇÃO ADUANEIRA " + NOMES[t]), ""]
+    .concat(["elabPor","cargo","cliente","cnpj","endereco","bairro","cidade","cep","telefone","contato","obs"].filter(k => k !== "obs" || c.obs).map(k => rot[k] + ": " + (c[k] || "")))
+    .concat(linhasTxt.length ? ["", ...linhasTxt] : []).join("\n").trim();
+  const all = el("button", "vall", "Copiar tudo de uma vez"); all.type = "button";
+  all.addEventListener("click", async () => { if (await copiarTexto(tudo)) toast("Tudo copiado"); else toast("Não consegui copiar", true); });
+  V.append(all);
+}
+(function abrirVista() {
+  const m = location.hash.match(/^#d=([A-Za-z0-9_-]+)$/);
+  if (!m) return;
+  try { const d = b64uDec(m[1]); montarVista(d); document.body.classList.add("vista-on"); document.title = "Dados para proposta — " + ((d.c && d.c.cliente) || "Syndex"); }
+  catch (e) { /* link inválido: mostra o formulário normal */ }
+})();
 </script>
 </body>
 </html>
