@@ -10,7 +10,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<title>Dados da Proposta — Syndex</title>
+<title>HUB | SYNDEX - Dados da proposta</title>
+<link rel="icon" type="image/png" href="favicon.png">
 <style>
   :root {
     --navy:#0A4762; --navy-dark:#073245; --teal:#57B772; --teal-light:#E3F4E8; --teal-mid:#A9D8B5;
@@ -712,7 +713,7 @@ function montarVista(d) {
 (function abrirVista() {
   const m = location.hash.match(/^#d=([A-Za-z0-9_-]+)$/);
   if (!m) return;
-  try { const d = b64uDec(m[1]); montarVista(d); document.body.classList.add("vista-on"); document.title = "Dados para proposta — " + ((d.c && d.c.cliente) || "Syndex"); }
+  try { const d = b64uDec(m[1]); montarVista(d); document.body.classList.add("vista-on"); document.title = "HUB | SYNDEX - Dados da proposta" + ((d.c && d.c.cliente) ? " — " + d.c.cliente : ""); }
   catch (e) { /* link inválido: mostra o formulário normal */ }
 })();
 </script>
