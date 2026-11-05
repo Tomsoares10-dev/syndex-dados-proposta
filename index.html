@@ -275,11 +275,14 @@ CAMPOS.forEach(id => {
 });
 
 // ---------- títulos ----------
+// tipo entra na proposta se estiver marcado OU se a tabela dele tiver algum X
+function temMarca(sec) { return Object.keys(marcas[sec] || {}).length > 0; }
+function tiposAtivos() {
+  return ["exp", "imp"].filter(sec => $(sec === "exp" ? "tExp" : "tImp").checked || temMarca(sec));
+}
 function titulosSelecionados() {
-  const t = [];
-  if ($("tExp").checked) t.push("PROPOSTA COMERCIAL - LIBERAÇÃO ADUANEIRA EXPORTAÇÃO");
-  if ($("tImp").checked) t.push("PROPOSTA COMERCIAL - LIBERAÇÃO ADUANEIRA IMPORTAÇÃO");
-  return t;
+  const NOME = { imp: "IMPORTAÇÃO", exp: "EXPORTAÇÃO" };
+  return tiposAtivos().map(sec => "PROPOSTA COMERCIAL - LIBERAÇÃO ADUANEIRA " + NOME[sec]);
 }
 $("copiarTitulos").addEventListener("click", async () => {
   const t = titulosSelecionados();
@@ -356,7 +359,9 @@ document.addEventListener("click", e => {
   const c = e.target.closest("button.cel");
   if (c) { const k = c.dataset.l + "|" + c.dataset.u; const m = marcas[c.dataset.sec];
     if (m[k]) delete m[k]; else m[k] = true;
-    c.classList.toggle("on", !!m[k]); c.textContent = m[k] ? "X" : ""; salvarSrv(); return; }
+    c.classList.toggle("on", !!m[k]); c.textContent = m[k] ? "X" : ""; salvarSrv();
+    if (m[k]) ajustarTipo(c.dataset.sec);
+    return; }
   const rm = e.target.closest("button.rm");
   if (rm) { const u = rm.dataset.rm; ufs = ufs.filter(x => x !== u);
     Object.keys(marcas).forEach(sec => LINHAS.forEach(l => delete marcas[sec][l + "|" + u]));
@@ -366,6 +371,15 @@ document.addEventListener("click", e => {
   const cl = e.target.closest("[data-clear]");
   if (cl) { marcas[cl.dataset.clear] = {}; renderTabelas(); salvarSrv(); toast("Tabela de " + SECOES[cl.dataset.clear].toLowerCase() + " limpa"); }
 });
+// marcou X numa tabela: marca o tipo dela e desmarca o outro tipo se a tabela dele estiver vazia
+function ajustarTipo(sec) {
+  const meu = $(sec === "exp" ? "tExp" : "tImp"), outroSec = sec === "exp" ? "imp" : "exp", outro = $(outroSec === "exp" ? "tExp" : "tImp");
+  if (meu.checked) return;
+  meu.checked = true;
+  if (outro.checked && !temMarca(outroSec)) outro.checked = false;
+  salvar();
+  toast("Tipo de proposta: " + tiposAtivos().map(s => SECOES[s]).join(" + "));
+}
 $("addUf").addEventListener("click", () => {
   const u = $("novaUf").value.trim().toUpperCase();
   if (!/^[A-Z]{2}$/.test(u)) { toast("Digite a sigla com 2 letras (ex.: GO)", true); return; }
@@ -525,21 +539,34 @@ function gerarPDF(edit) {
   const L = 14, R = 196, W = R - L, GAP = 6, CW = (W - GAP) / 2;
   const V = id => $(id).value.trim();
   const TEAL = [0, 73, 106], GREEN = [63, 166, 91], LINE = [213, 222, 228], SOFT = [244, 247, 249], GRAY = [106, 124, 135];
-  const tipos = [];
-  if ($("tExp").checked) tipos.push("exp");
-  if ($("tImp").checked) tipos.push("imp");
+  const tipos = tiposAtivos();
   const NOME = { imp: "IMPORTAÇÃO", exp: "EXPORTAÇÃO" };
   const fill = c => doc.setFillColor(c[0], c[1], c[2]);
   const ink = c => doc.setTextColor(c[0], c[1], c[2]);
   const draw = c => doc.setDrawColor(c[0], c[1], c[2]);
   const font = (s, b) => { doc.setFontSize(s); doc.setFont("helvetica", b ? "bold" : "normal"); };
   let campoN = 0;
+  // campo editável: a biblioteca de PDF corta o "(" do início e o ")" do fim do texto que DESENHA no campo
+  // (ex.: "(47) 8908-4753" aparecia "47) 8908-4753"). Desenho com o texto entre parênteses extras
+  // e gravo o valor real no campo, que é o que se copia.
+  const campoTexto = (nome, txt) => {
+    const f = new jsPDF.AcroForm.TextField();
+    const real = txt || "";
+    f.fieldName = nome; f.value = real ? "(" + real + ")" : "";
+    if (real) {
+      const base = f.getKeyValueListForStream;
+      f.getKeyValueListForStream = function () {
+        this.value = real; const lista = base.call(this); this.value = "(" + real + ")"; return lista;
+      };
+    }
+    return f;
+  };
   // valor: texto fixo no PDF comum, campo editável no PDF editável
   const valor = (nome, txt, x, y, w, size, bold) => {
     font(size, bold); ink([20, 35, 44]);
     if (!edit) { doc.text(txt, x, y); return; }
-    const f = new jsPDF.AcroForm.TextField();
-    f.Rect = [x - 0.8, y - 4.4, w, 6.2]; f.fieldName = nome; f.value = txt || ""; f.fontSize = size; f.textAlign = "left";
+    const f = campoTexto(nome, txt);
+    f.Rect = [x - 0.8, y - 4.4, w, 6.2]; f.fontSize = size; f.textAlign = "left";
     doc.addField(f);
   };
   const caixa = (nome, rot, txt, x, y, w) => {
@@ -582,8 +609,8 @@ function gerarPDF(edit) {
     draw(LINE); doc.setLineWidth(0.25); fill([255, 255, 255]); doc.roundedRect(L, y, W, oh, 1.4, 1.4, "S");
     font(6.3, false); ink(GRAY); doc.text("OBSERVAÇÕES", L + 3, y + 4, { charSpace: 0.4 });
     if (edit) {
-      const f = new jsPDF.AcroForm.TextField();
-      f.Rect = [L + 2.2, y + 5.2, W - 4.4, oh - 6.4]; f.fieldName = "obs"; f.multiline = true; f.value = obsTxt; f.fontSize = 9.5; f.textAlign = "left";
+      const f = campoTexto("obs", obsTxt);
+      f.Rect = [L + 2.2, y + 5.2, W - 4.4, oh - 6.4]; f.multiline = true; f.fontSize = 9.5; f.textAlign = "left";
       doc.addField(f);
     } else { font(9.5, false); ink([20, 35, 44]); doc.text(ol, L + 3, y + 9); }
     y += oh + 3.5;
@@ -637,7 +664,7 @@ function b64uDec(str) {
 }
 function dadosParaLink() {
   const c = {}; CAMPOS.forEach(id => { c[id] = $(id).value.trim(); });
-  return { v: 1, c, t: [$("tExp").checked ? "exp" : "", $("tImp").checked ? "imp" : ""].filter(Boolean), ufs, m: marcas };
+  return { v: 1, c, t: tiposAtivos(), ufs, m: marcas };
 }
 function urlBase() { return location.origin + location.pathname; }
 $("gerarLink").addEventListener("click", async () => {
@@ -660,7 +687,8 @@ function montarVista(d) {
   const NOMES = { imp: "IMPORTAÇÃO", exp: "EXPORTAÇÃO" };
   const c = d.c || {}, ufsV = Array.isArray(d.ufs) ? d.ufs.filter(u => /^[A-Z]{2}$/.test(u)) : [];
   const mk = d.m || { imp: {}, exp: {} };
-  const tipos = (d.t || []).filter(t => NOMES[t]);
+  // links antigos: inclui também o tipo cuja tabela tem X
+  const tipos = ["exp", "imp"].filter(t => (d.t || []).includes(t) || (mk[t] && Object.keys(mk[t]).length));
   const top = el("div", "vtop"); top.append(el("b", "", "SYNDEX LOGÍSTICA E GESTÃO ADUANEIRA LTDA."), el("span", "", "Dados para proposta"));
   V.append(top, el("h1", "", "Informações do cliente"), el("p", "vhint", "Toque em cada cartão para copiar a informação. Depois é só colar na proposta."));
   async function copiar(card, texto) {
