@@ -182,6 +182,7 @@
     <h2>Enviar para a Diretoria</h2>
     <div class="row" style="margin-bottom:12px"><div class="lbl">Nome do PDF</div><input id="pdfNome" placeholder="Ex.: Dados_Proposta_PABOVI (vazio = automático)" autocomplete="off"></div>
     <div class="acoes">
+      <button class="btn dark" type="button" id="gerarDoc" style="grid-column:1/-1">Gerar DOCUMENTO INTERATIVO para a Diretoria (1 clique copia cada dado)</button>
       <button class="btn primary" type="button" id="copiarTudo">Copiar tudo (com títulos)</button>
       <button class="btn dark" type="button" id="copiarValores">Copiar só os valores (em coluna)</button>
       <button class="btn primary" type="button" id="gerarPdf">Gerar PDF (texto para copiar)</button>
@@ -191,7 +192,7 @@
       <button class="btn ghost" type="button" id="enviarEmail">Enviar por e-mail</button>
     </div>
         <div id="linkBox"><input id="linkUrl" readonly aria-label="Link para a Diretoria"><div class="lb"><button class="btn primary" type="button" id="linkCopiar" style="flex:1">Copiar link</button><button class="btn zap" type="button" id="linkZap" style="flex:1">Enviar link por WhatsApp</button></div><p class="hint" style="margin:8px 0 0">Quem abrir o link vê os dados em cartões: um toque em cada cartão copia a informação.</p></div>
-<p class="hint"><b>Gerar PDF editável</b> cria a mesma folha com todos os campos editáveis (clique e digite, cole, apague). <b>Gerar PDF</b> cria a folha no mesmo layout da proposta, com texto selecionável: dá para copiar tudo ou item por item. <b>Copiar tudo</b> gera o bloco completo, pronto para colar numa mensagem. <b>Só os valores</b> cola um valor por linha, na mesma ordem da planilha (bom para colar direto no Excel). O WhatsApp e o e-mail abrem já com o texto pronto — você escolhe o destinatário e confirma o envio.</p>
+<p class="hint"><b>Documento interativo</b> gera um arquivo para enviar à Diretoria pelo WhatsApp ou e-mail: ao abrir, um clique em cada dado já copia, e cada item copiado fica marcado com ✓ (no celular abre direto a tela de compartilhar; no computador o arquivo é baixado). <b>Gerar PDF editável</b> cria a mesma folha com todos os campos editáveis (clique e digite, cole, apague). <b>Gerar PDF</b> cria a folha no mesmo layout da proposta, com texto selecionável: dá para copiar tudo ou item por item. <b>Copiar tudo</b> gera o bloco completo, pronto para colar numa mensagem. <b>Só os valores</b> cola um valor por linha, na mesma ordem da planilha (bom para colar direto no Excel). O WhatsApp e o e-mail abrem já com o texto pronto — você escolhe o destinatário e confirma o envio.</p>
     <button class="btn ghost" type="button" id="limpar" style="margin-top:12px;width:100%">Limpar tudo e começar nova proposta</button>
   </div>
 
@@ -644,14 +645,245 @@ function gerarPDF(edit) {
   doc.text("Cada informação é um texto separado: selecione e copie item por item.", L, 292.7);
   const d = new Date(); doc.text(String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear(), R, 292.7, { align: "right" });
   doc.setProperties({ title: "Dados para proposta - " + V("cliente"), author: "Syndex" });
-  // nome do arquivo: o que estiver no campo "Nome do PDF", senão automático
-  let nome = $("pdfNome").value.trim().replace(/\.pdf$/i, "").replace(/[\\/:*?"<>|]+/g, "").trim();
-  if (!nome) nome = "Dados_Proposta_" + V("cliente").replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40);
-  doc.save(nome + (edit ? "_EDITAVEL" : "") + ".pdf");
+  doc.save(nomeArquivoBase() + (edit ? "_EDITAVEL" : "") + ".pdf");
   toast(edit ? "PDF editável gerado" : "PDF gerado");
 }
 $("gerarPdf").addEventListener("click", () => gerarPDF(false));
 $("gerarPdfEdit").addEventListener("click", () => gerarPDF(true));
+
+// nome do arquivo: o que estiver no campo "Nome do PDF", senão automático (vale para PDF e documento)
+function nomeArquivoBase() {
+  let nome = $("pdfNome").value.trim().replace(/\.(pdf|html?)$/i, "").replace(/[\\/:*?"<>|]+/g, "").trim();
+  if (!nome) nome = "Dados_Proposta_" + $("cliente").value.trim().replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40);
+  return nome;
+}
+
+// ---------- documento interativo: arquivo .html autônomo, um clique copia cada dado ----------
+function escHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+const DOC_CSS = `
+*{box-sizing:border-box}
+html{background:#E9EEF2}
+body{margin:0;font-family:Helvetica,Arial,sans-serif;color:#14232C;-webkit-text-size-adjust:100%}
+.barra{position:sticky;top:0;z-index:5;background:#00496A;color:#fff;box-shadow:0 2px 12px rgba(0,0,0,.18)}
+.barra .in{max-width:820px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dica{flex:1;min-width:220px;font-size:13.5px;line-height:1.35}
+.dica b{color:#A6E3B7}
+.cont{color:#cfe3ec;font-size:12px;white-space:nowrap}
+.tb{border:0;border-radius:8px;padding:9px 13px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;background:#3FA65B;color:#06301D}
+.tb.alt{background:#fff;color:#00496A}
+.tb.min{background:transparent;color:#d9e8ef;border:1px solid rgba(255,255,255,.4)}
+.tb:hover{filter:brightness(.95)}
+.tb.flash{outline:3px solid #A6E3B7}
+.folha{max-width:820px;margin:18px auto 40px;background:#fff;border-radius:6px;box-shadow:0 4px 24px rgba(10,40,60,.12);padding:26px 30px 22px}
+.cab{display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:3px solid #00496A;padding-bottom:12px}
+.cab b{display:block;color:#00496A;font-size:14px}
+.cab span{font-size:11.5px;color:#6A7C87}
+.cab img{height:46px;width:auto}
+.eyebrow{margin:22px 0 2px;font-size:11px;letter-spacing:.14em;font-weight:700;color:#3FA65B}
+h1{margin:0;font-size:24px;color:#00496A}
+.sub{margin:4px 0 0;font-size:12.5px;color:#6A7C87}
+.sec{margin:24px 0 8px;font-size:11px;font-weight:700;letter-spacing:.12em;color:#00496A;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.sec:before{content:"";width:16px;height:3px;background:#3FA65B}
+.lista{border:1px solid #D5DEE4;border-radius:8px;overflow:hidden}
+.item{display:grid;grid-template-columns:150px 1fr auto;align-items:stretch;cursor:pointer;background:#fff;outline:0;transition:background .12s;-webkit-tap-highlight-color:transparent}
+.item+.item{border-top:1px solid #D5DEE4}
+.item .rot{background:#F4F7F9;color:#00496A;font-weight:700;font-size:12px;padding:12px;display:flex;align-items:center;border-right:1px solid #D5DEE4}
+.item .val{padding:12px 14px;font-size:15.5px;font-weight:700;word-break:break-word;white-space:pre-wrap;display:flex;align-items:center}
+.item .ck{align-self:center;margin:0 12px;font-size:11.5px;font-weight:700;color:#00496A;border:1px solid #BFD0DA;border-radius:999px;padding:5px 11px;white-space:nowrap;background:#fff}
+.item:hover{background:#EEF6F1}
+.item:focus-visible{box-shadow:inset 0 0 0 2px #00496A}
+.item.feito .ck{background:#3FA65B;border-color:#3FA65B;color:#fff}
+.item.feito .rot{color:#2f7a47}
+.item.flash,.item.flash .rot{background:#D6F0DE}
+.item.vazio{cursor:default}
+.item.vazio:hover{background:#fff}
+.item.vazio .ck{visibility:hidden}
+.item.vazio .val{color:#9AA8B1;font-weight:400}
+.item.titulo .val{font-size:14px}
+.tbl{overflow-x:auto;border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th{background:#00496A;color:#fff;padding:7px 4px;font-size:11px}
+th:first-child{text-align:left;padding-left:10px}
+td{border:1px solid #D5DEE4;height:30px;text-align:center}
+td:first-child{text-align:left;padding:0 10px;font-weight:700;background:#F4F7F9;white-space:nowrap}
+.xx{background:#3FA65B;color:#fff;border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700}
+.acao-tbl{display:flex;justify-content:flex-end;margin:8px 0}
+.mini{border:1px solid #00496A;background:#fff;color:#00496A;border-radius:7px;padding:7px 11px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.mini.feito{background:#3FA65B;border-color:#3FA65B;color:#fff}
+.nada{font-size:12.5px;color:#6A7C87;margin:0}
+.ns{background:#FFF6DD;border:1px solid #E9D59A;border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+.rodape{margin-top:26px;padding-top:10px;border-top:1px solid #D5DEE4;font-size:11px;color:#6A7C87;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(24px);background:#073245;color:#fff;padding:11px 18px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:.22s;max-width:92vw;z-index:20;border-left:4px solid #3FA65B;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ruim{border-left-color:#B23A2E}
+@media (max-width:600px){
+  .barra .in{padding:9px 12px}
+  .dica{font-size:12.5px;min-width:100%}
+  .tb{flex:1;padding:10px 8px}
+  .folha{margin:0;border-radius:0;box-shadow:none;padding:18px 14px 28px}
+  .cab img{height:34px}
+  h1{font-size:20px}
+  .item{grid-template-columns:1fr auto}
+  .item .rot{grid-column:1/3;border-right:0;background:transparent;padding:9px 12px 0;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#6A7C87}
+  .item .val{padding:3px 12px 11px}
+  .item .ck{margin:0 12px 10px 0;align-self:end}
+}
+@media print{
+  html{background:#fff}
+  .barra,#toast,.ck,.acao-tbl,.ns{display:none!important}
+  .folha{box-shadow:none;margin:0;max-width:none;padding:0}
+  .item.feito .rot{color:#00496A}
+  .item,.lista,table{break-inside:avoid}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+`;
+// roda DENTRO do documento gerado (vai como texto para o arquivo; não usa nada desta página)
+function docScript() {
+  var C = window.__COPIAS || [];
+  var toastEl = document.getElementById("toast"), tmr = 0;
+  var cont = document.getElementById("cont");
+  var total = document.querySelectorAll(".item[data-k]").length;
+  function contar() {
+    var n = document.querySelectorAll(".item.feito").length;
+    cont.textContent = n ? n + " de " + total + " copiados" : "";
+  }
+  function toast(msg, ruim) {
+    toastEl.textContent = msg; toastEl.className = "show" + (ruim ? " ruim" : "");
+    clearTimeout(tmr); tmr = setTimeout(function () { toastEl.className = ""; }, 1900);
+  }
+  function metodoAntigo(txt) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = txt; ta.setAttribute("readonly", ""); ta.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+      document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, txt.length);
+      var ok = document.execCommand("copy"); document.body.removeChild(ta); return ok;
+    } catch (e) { return false; }
+  }
+  function copiar(txt, depois) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(function () { depois(true); }, function () { depois(metodoAntigo(txt)); });
+    } else depois(metodoAntigo(txt));
+  }
+  function ativar(el) {
+    var txt = C[+el.getAttribute("data-k")];
+    if (!txt) { toast("Campo vazio", true); return; }
+    copiar(txt, function (ok) {
+      if (!ok) { toast("Não consegui copiar. Selecione o texto e use Ctrl+C.", true); return; }
+      el.classList.add("feito"); el.classList.add("flash");
+      setTimeout(function () { el.classList.remove("flash"); }, 650);
+      var ck = el.querySelector(".ck"); if (ck) ck.textContent = "✓ Copiado";
+      var curto = txt.replace(/\s+/g, " ");
+      toast(el.getAttribute("data-msg") || ("Copiado: " + (curto.length > 50 ? curto.slice(0, 50) + "…" : curto)));
+      contar();
+    });
+  }
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest ? e.target.closest("[data-k]") : null;
+    if (!el) return;
+    var s = window.getSelection ? window.getSelection() : null;
+    if (s && !s.isCollapsed && el.contains(s.anchorNode)) return; // está selecionando o texto à mão: não atrapalha
+    ativar(el);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var el = e.target.closest ? e.target.closest(".item[data-k]") : null;
+    if (!el) return;
+    e.preventDefault(); ativar(el);
+  });
+  var imp = document.getElementById("imprimir");
+  if (imp) imp.addEventListener("click", function () { window.print(); });
+  contar();
+}
+function montarDocumentoHTML() {
+  const V = id => $(id).value.trim();
+  const NOME = { imp: "IMPORTAÇÃO", exp: "EXPORTAÇÃO" };
+  const tipos = tiposAtivos();
+  const d = new Date();
+  const data = String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
+  const copias = [montarTextoCompleto(), montarSoValores()];   // 0 = tudo com títulos, 1 = só os valores
+  const item = (rot, val, cls) => {
+    const c = cls ? " " + cls : "";
+    if (!val) return `<div class="item vazio${c}"><span class="rot">${escHtml(rot)}</span><span class="val">—</span><span class="ck">Copiar</span></div>`;
+    copias.push(val);
+    return `<div class="item${c}" role="button" tabindex="0" data-k="${copias.length - 1}" title="Clique para copiar"><span class="rot">${escHtml(rot)}</span><span class="val">${escHtml(val)}</span><span class="ck">Copiar</span></div>`;
+  };
+  const secao = t => `<div class="sec">${escHtml(t)}</div>`;
+  let h = "";
+  if (tipos.length) h += secao("Tipo de proposta") + `<div class="lista">` + tipos.map(t => item("Título", "PROPOSTA COMERCIAL - LIBERAÇÃO ADUANEIRA " + NOME[t], "titulo")).join("") + `</div>`;
+  h += secao("Elaboração") + `<div class="lista">` + item("Elaborada por", V("elabPor")) + item("Cargo", V("cargo")) + `</div>`;
+  const ROT = { cliente: "Cliente", cnpj: "CNPJ", endereco: "Endereço", bairro: "Bairro", cidade: "Cidade - UF", cep: "CEP", telefone: "Telefone", contato: "A/C (contato)" };
+  h += secao("Cliente") + `<div class="lista">` + ["cliente", "cnpj", "endereco", "bairro", "cidade", "cep", "telefone", "contato"].map(id => item(ROT[id], V(id))).join("") + `</div>`;
+  if (V("obs")) h += secao("Observações") + `<div class="lista">` + item("Observações", V("obs")) + `</div>`;
+  tipos.forEach(sec => {
+    h += secao("Serviço: " + NOME[sec]);
+    let tb = `<div class="tbl"><table><tr><th>Recinto Alfandegado</th>` + ufs.map(u => `<th>${escHtml(u)}</th>`).join("") + `</tr>`;
+    const marcadas = [];
+    LINHAS.forEach(l => {
+      tb += `<tr><td>${escHtml(l)}:</td>` + ufs.map(u => `<td>${marcas[sec][l + "|" + u] ? '<span class="xx">X</span>' : ""}</td>`).join("") + `</tr>`;
+      const m = ufs.filter(u => marcas[sec][l + "|" + u]);
+      if (m.length) marcadas.push([l, m.join(", ")]);
+    });
+    copias.push(tabelaTSV(sec));
+    h += tb + `</table></div><div class="acao-tbl"><button type="button" class="mini" data-k="${copias.length - 1}" data-msg="Tabela de ${NOME[sec].toLowerCase()} copiada — cole no Excel">Copiar tabela (colar no Excel)</button></div>`;
+    h += marcadas.length ? `<div class="lista">` + marcadas.map(([l, m]) => item(l, m)).join("") + `</div>` : `<p class="nada">Nenhum recinto marcado.</p>`;
+  });
+  const json = JSON.stringify(copias).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+  const titulo = "Dados para proposta" + (V("cliente") ? " - " + V("cliente") : "");
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escHtml(titulo)}</title>
+<style>${DOC_CSS}</style>
+</head>
+<body>
+<div class="barra"><div class="in">
+  <div class="dica"><b>Clique em qualquer informação para copiar.</b> Depois é só colar na proposta (Ctrl+V). <span class="cont" id="cont"></span></div>
+  <button type="button" class="tb" data-k="0" data-msg="Tudo copiado (com títulos)">Copiar tudo</button>
+  <button type="button" class="tb alt" data-k="1" data-msg="Valores copiados (um por linha)">Só os valores</button>
+  <button type="button" class="tb min" id="imprimir">Imprimir</button>
+</div></div>
+<main class="folha">
+  <noscript><div class="ns">Para copiar com um clique, abra este arquivo no navegador (Chrome, Edge ou Safari). Aqui ainda dá para selecionar o texto e copiar.</div></noscript>
+  <div class="cab"><div><b>SYNDEX LOGÍSTICA E GESTÃO ADUANEIRA LTDA.</b><span>Itajaí-SC · Fone 47 3405-1000</span></div><img src="${LOGO_PDF}" alt="Syndex"></div>
+  <p class="eyebrow">DADOS PARA PROPOSTA</p>
+  <h1>Informações do cliente</h1>
+  <p class="sub">Elaborada por ${escHtml(V("elabPor"))} · ${escHtml(V("cargo"))} · ${data}</p>
+  ${h}
+  <div class="rodape"><span>Gerado em ${data} · HUB | SYNDEX - Dados da proposta</span><span>Cada item copiado fica marcado com ✓</span></div>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>window.__COPIAS = ${json};<\/script>
+<script>(${docScript.toString()})();<\/script>
+</body>
+</html>`;
+}
+async function entregarArquivo(nomeArq, html) {
+  const blob = new Blob([html], { type: "text/html" });
+  // celular: abre a tela de compartilhar (WhatsApp, e-mail...). computador: baixa o arquivo.
+  const toque = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  if (toque && navigator.canShare && typeof File === "function") {
+    try {
+      const file = new File([blob], nomeArq, { type: "text/html" });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Dados para proposta" });
+        toast("Documento pronto para enviar"); return;
+      }
+    } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = nomeArq;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast("Documento baixado — envie para a Diretoria pelo WhatsApp ou e-mail");
+}
+$("gerarDoc").addEventListener("click", () => {
+  if (!validar()) return;
+  entregarArquivo(nomeArquivoBase() + ".html", montarDocumentoHTML());
+});
 
 // ---------- link para a Diretoria (um toque copia cada informação) ----------
 function b64uEnc(obj) {
