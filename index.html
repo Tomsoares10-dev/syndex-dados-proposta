@@ -736,6 +736,10 @@ tr.cpr.ok .m{opacity:1;color:#3F8F4F}
 .lk{border:0;background:none;padding:0;font:inherit;font-size:11.5px;font-weight:700;color:#0563C1;cursor:pointer;text-decoration:underline}
 .lk.ok{color:#3F8F4F}
 .nada{font-size:13px;color:#777;margin:4px 0 0}
+.obs-rot{font-weight:700;font-size:15.5px;margin:10px 0 5px}
+.obs{position:relative;display:block;border:1px solid #BFBFBF;border-radius:4px;min-height:62px;padding:8px 10px;margin:0;font-size:15px;line-height:1.4;white-space:pre-wrap;word-break:break-word}
+.cp.obs{display:block;margin:0;padding:8px 70px 8px 10px}
+.cp.obs .m{position:absolute;right:10px;top:9px}
 .rodape{position:absolute;left:113px;right:113px;bottom:40px;text-align:center;font-size:14.5px;line-height:1.35;z-index:1}
 .rodape a{color:#0563C1;font-weight:700}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#202124;color:#fff;padding:10px 16px;border-radius:8px;font-size:13.5px;opacity:0;pointer-events:none;transition:.2s;max-width:92vw;z-index:20;box-shadow:0 4px 16px rgba(0,0,0,.4)}
@@ -754,6 +758,7 @@ tr.cpr.ok .m{opacity:1;color:#3F8F4F}
   .cp .r{font-size:12.5px;white-space:normal}
   .cp .m{display:none}
   .cp.tit{margin:0 -8px;padding:4px 8px;font-size:14px}
+  .cp.obs{margin:0;padding:8px 10px;font-size:14.5px}
   table{font-size:11.5px}
   th,td{padding:0 1px}
   th:first-child,td:first-child{width:auto;padding:0 5px;white-space:normal}
@@ -860,10 +865,13 @@ function montarDocumentoHTML() {
   h += `<hr><h2>Dados do cliente:</h2>`;
   [["Cliente", "cliente"], ["CNPJ", "cnpj"], ["Endereço", "endereco"], ["Bairro", "bairro"], ["Cidade - UF", "cidade"],
    ["CEP", "cep"], ["Telefone", "telefone"], ["A/C (contato)", "contato"]].forEach(([rot, id]) => { h += linha(rot, V(id)); });
-  if (V("obs")) h += linha("Observações", V("obs"));
-  if (tipos.length) {
+  const obs = V("obs");   // campo de observações sempre aparece no documento (vazio = caixa em branco)
+  h += `<div class="obs-rot">Observações:</div>` + (obs
+    ? `<div class="cp obs" role="button" tabindex="0" data-k="${k(obs)}" title="Clique para copiar"><span class="v">${escHtml(obs)}</span>${marca}</div>`
+    : `<div class="obs vazio"></div>`);
+  {
     h += `<hr><h2>Serviço – Recinto alfandegado:</h2><div class="tbl"><table><tr><th>Recinto Alfandegado</th>` + ufs.map(u => `<th>${escHtml(u)}</th>`).join("") + `</tr>`;
-    tipos.forEach(sec => {
+    ["imp", "exp"].forEach(sec => {   // sempre importação e exportação, marcadas ou não
       h += `<tr class="grupo"><td colspan="${ufs.length + 1}">SERVIÇO: ${NOME[sec]}<button type="button" class="lk" data-k="${k(tabelaTSV(sec))}" data-msg="Tabela de ${NOME[sec].toLowerCase()} copiada — cole no Excel">copiar tabela para o Excel</button></td></tr>`;
       LINHAS.forEach(l => {
         const m = ufs.filter(u => marcas[sec][l + "|" + u]);
